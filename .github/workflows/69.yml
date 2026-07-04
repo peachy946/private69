@@ -24,4 +24,4 @@ jobs:
         PASSWORD: ${{ secrets.PASSWORD }}
     - run: choco install cloudflared
     - name: Create Tunnel
-      run: cloudflared tunnel --url rdp://localhost:3389 --protocol http2
+      run: cloudflared tunnel --url tcp://localhost:3389
