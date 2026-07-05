@@ -40,8 +40,8 @@ jobs:
       - name: Delete folders (background)
         shell: powershell
         run: |
-          Start-Process powershell -WindowStyle Hidden -ArgumentList "
-            \$paths = @(
+          Start-Job -ScriptBlock {
+            $paths = @(
               'C:\Program Files (x86)\Android',
               'C:\Program Files (x86)\Windows Kits',
               'C:\Program Files (x86)\Microsoft SDKs',
@@ -57,10 +57,12 @@ jobs:
               'C:\Strawberry'
             )
 
-            foreach (\$p in \$paths) {
-              Remove-Item \$p -Recurse -Force -ErrorAction SilentlyContinue
+            foreach ($p in $paths) {
+              if (Test-Path $p) {
+                Remove-Item $p -Recurse -Force -ErrorAction SilentlyContinue
+              }
             }
-          "
+          }
 
       - name: Enable TS
         run: |
