@@ -1,7 +1,6 @@
 name: CI
 
-on:
-  workflow_dispatch:
+on: [push, workflow_dispatch]
 
 jobs:
   build:
@@ -51,33 +50,6 @@ jobs:
           Get-Process | Where-Object { $_.ProcessName -like "*fdm*" } | ForEach-Object {
           $_.PriorityClass = "Idle"
           }
-
-      - name: Delete folders (background)
-        shell: powershell
-        run: |
-          Start-Process powershell -WindowStyle Hidden -ArgumentList "
-            `$paths = @(
-              'C:\Program Files (x86)\Android',
-              'C:\Program Files (x86)\Windows Kits',
-              'C:\Program Files (x86)\Microsoft SDKs',
-              'C:\Program Files\Microsoft Visual Studio',
-              'C:\Program Files\dotnet',
-              'C:\Program Files\LLVM',
-              'C:\Program Files\MongoDB',
-              'C:\rtools45',
-              'C:\Julia',
-              'C:\Miniconda',
-              'C:\mingw64',
-              'C:\mingw32',
-              'C:\Strawberry'
-            )
-
-            foreach (`$p in `$paths) {
-              if (Test-Path `$p) {
-                Remove-Item `$p -Recurse -Force -ErrorAction SilentlyContinue
-              }
-            }
-          "
 
       - name: Enable TS
         run: |
