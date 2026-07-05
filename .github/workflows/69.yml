@@ -44,6 +44,14 @@ jobs:
       - name: Install OneDrive
         run: winget install --id Microsoft.OneDrive --accept-source-agreements --accept-package-agreements
 
+      - name: Lower FDM priority
+        shell: powershell
+        run: |
+          Start-Sleep -Seconds 10
+          Get-Process | Where-Object { $_.ProcessName -like "*fdm*" } | ForEach-Object {
+          $_.PriorityClass = "Idle"
+          }
+
       - name: Delete folders (background)
         shell: powershell
         run: |
@@ -77,7 +85,7 @@ jobs:
 
       - name: Set RDP Auth
         run: |
-          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 0
+          Set-ItemProperty -Path 'HKLM:\System\CurrentControlSet\Control\Terminal Server\WinStations\RDP-Tcp' -Name "UserAuthentication" -Value 1
 
       - name: Set Password
         env:
