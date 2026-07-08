@@ -82,6 +82,7 @@ jobs:
       - name: Connect Cloudflare WARP
         shell: powershell
         run: |
+          $env:Path += ";${env:ProgramFiles}\Cloudflare\Cloudflare WARP"
           warp-cli registration new
           warp-cli mode warp
           warp-cli connect
