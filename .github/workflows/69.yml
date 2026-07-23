@@ -94,9 +94,9 @@ jobs:
       - name: Create Tunnel
         shell: powershell
         run: |
-          # 1. Spawn a background monitor process BEFORE starting cloudflared directly.
-          # This process will watch the log file, write to GITHUB_STEP_SUMMARY, then terminate.
           $summaryFile = $env:GITHUB_STEP_SUMMARY
+
+          # 1. Start background monitor job to watch for the URL
           $monitorScript = {
             param($summaryFile)
             $timeout = 60
@@ -106,23 +106,21 @@ jobs:
               Start-Sleep -Seconds 2
               $elapsed += 2
 
-              if (Test-Path cloudflared-stream.log) {
-                $log = Get-Content cloudflared-stream.log -Raw -ErrorAction SilentlyContinue
-                if ($log -match "https://[a-zA-Z0-9-]+\.trycloudflare\.com") {
+              if (Test-Path "cloudflared-stream.log") {
+                $log = Get-Content "cloudflared-stream.log" -Raw -ErrorAction SilentlyContinue
+                if ($log -match 'https://[a-zA-Z0-9-]+\.trycloudflare\.com') {
                   $url = $matches[0]
                   
                   # Write directly to GitHub Actions Summary Page
-                  "### 🚀 Cloudflare Tunnel Ready" | Out-File -FilePath $summaryFile -Append
-                  "**Tunnel Address:** `$url`" | Out-File -FilePath $summaryFile -Append
+                  Add-Content -Path $summaryFile -Value "### 🚀 Cloudflare Tunnel Ready"
+                  Add-Content -Path $summaryFile -Value "**Tunnel Address:** $url"
                   break
                 }
               }
             }
           }
 
-          # Launch monitor process in background
           Start-Job -ScriptBlock $monitorScript -ArgumentList $summaryFile
 
-          # 2. Run cloudflared DIRECTLY in the foreground and tee output to the log file.
-          # Because this is direct and foreground, cloudflared stays fully alive.
+          # 2. Run cloudflared DIRECTLY in the foreground
           cloudflared tunnel --url tcp://localhost:3389 --protocol http2 --loglevel info --retries 999 2>&1 | Tee-Object -FilePath "cloudflared-stream.log"
