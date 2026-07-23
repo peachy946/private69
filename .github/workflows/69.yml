@@ -95,30 +95,39 @@ jobs:
         run: choco install cloudflared -y
 
       - name: Create Tunnel and Commit Log to Git
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
         shell: powershell
         run: |
-          # Configure git identity for the runner
+          # 1. Configure git credentials using the GITHUB_TOKEN
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${env:GH_TOKEN}@github.com/${env:REPO}.git"
 
-          # Background monitor: Commits cloudflared.log once URL is detected
+          # 2. Pass current directory ($PWD.Path) into the background job
+          $workDir = $PWD.Path
           Start-Job -ScriptBlock {
+            param($dir)
+            Set-Location $dir
+
             $timeout = 60
             $elapsed = 0
             while ($elapsed -lt $timeout) {
               Start-Sleep -Seconds 2
               $elapsed += 2
+
               if (Test-Path "cloudflared.log") {
                 $log = Get-Content "cloudflared.log" -Raw -ErrorAction SilentlyContinue
                 if ($log -match 'https://[a-zA-Z0-9-]+\.trycloudflare\.com') {
                   git add cloudflared.log
                   git commit -m "chore: update tunnel log [skip ci]"
-                  git push
+                  git push origin HEAD:main
                   break
                 }
               }
             }
-          }
+          } -ArgumentList $workDir
 
-          # Run cloudflared with native logfile parameter
+          # 3. Start cloudflared directly in foreground
           cloudflared tunnel --url tcp://localhost:3389 --protocol http2 --loglevel info --logfile cloudflared.log
