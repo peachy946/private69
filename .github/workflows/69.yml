@@ -3,6 +3,9 @@ name: CI
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+  
 jobs:
   build:
     runs-on: windows-latest
@@ -91,36 +94,31 @@ jobs:
       - name: Install Cloudflared
         run: choco install cloudflared -y
 
-      - name: Create Tunnel
+      - name: Create Tunnel and Commit Log to Git
         shell: powershell
         run: |
-          $summaryFile = $env:GITHUB_STEP_SUMMARY
+          # Configure git identity for the runner
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          # 1. Start background monitor job to watch for the URL
-          $monitorScript = {
-            param($summaryFile)
+          # Background monitor: Commits cloudflared.log once URL is detected
+          Start-Job -ScriptBlock {
             $timeout = 60
             $elapsed = 0
-
             while ($elapsed -lt $timeout) {
               Start-Sleep -Seconds 2
               $elapsed += 2
-
-              if (Test-Path "cloudflared-stream.log") {
-                $log = Get-Content "cloudflared-stream.log" -Raw -ErrorAction SilentlyContinue
+              if (Test-Path "cloudflared.log") {
+                $log = Get-Content "cloudflared.log" -Raw -ErrorAction SilentlyContinue
                 if ($log -match 'https://[a-zA-Z0-9-]+\.trycloudflare\.com') {
-                  $url = $matches[0]
-                  
-                  # Write directly to GitHub Actions Summary Page
-                  Add-Content -Path $summaryFile -Value "### 🚀 Cloudflare Tunnel Ready"
-                  Add-Content -Path $summaryFile -Value "**Tunnel Address:** $url"
+                  git add cloudflared.log
+                  git commit -m "chore: update tunnel log [skip ci]"
+                  git push
                   break
                 }
               }
             }
           }
 
-          Start-Job -ScriptBlock $monitorScript -ArgumentList $summaryFile
-
-          # 2. Run cloudflared DIRECTLY in the foreground
-          cloudflared tunnel --url tcp://localhost:3389 --protocol http2 --loglevel info --retries 999 2>&1 | Tee-Object -FilePath "cloudflared-stream.log"
+          # Run cloudflared with native logfile parameter
+          cloudflared tunnel --url tcp://localhost:3389 --protocol http2 --loglevel info --logfile cloudflared.log
